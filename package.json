@@ -1,8 +1,9 @@
 {
-  "name": "claude-usage-vscode",
-  "displayName": "Claude Usage Monitor",
+  "name": "dikeit-claude-usage-monitor",
+  "displayName": "Dikeit — Claude Usage Monitor",
   "description": "Real-time Claude API usage monitor — 5-hour and weekly windows in the status bar and panel.",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "icon": "assets/icon.png",
   "publisher": "dikeit",
   "author": {
     "name": "Matt Garrido",
