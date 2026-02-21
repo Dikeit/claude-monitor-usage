@@ -1,7 +1,7 @@
 {
   "name": "dikeit-claude-usage-monitor",
   "displayName": "Dikeit — Claude Usage Monitor",
-  "description": "Real-time Claude API usage monitor — 5-hour and weekly windows in the status bar and panel.",
+  "description": "Monitor Claude API limits and token usage (5-hour & 7-day) directly inside VSCode. Real-time status bar visibility and threshold alerts.",
   "version": "0.1.1",
   "icon": "assets/icon.png",
   "publisher": "dikeit",
@@ -23,8 +23,8 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
-  "keywords": ["claude", "anthropic", "usage", "tokens", "monitor", "ai", "status bar"],
+  "categories": ["Other", "Testing", "Visualization"],
+  "keywords": ["claude", "anthropic", "usage", "tokens", "monitor", "ai", "status bar", "api", "quota", "limits", "developer tools", "cost monitoring"],
   "activationEvents": [
     "onStartupFinished",
     "onCommand:claudeUsage.openPanel",

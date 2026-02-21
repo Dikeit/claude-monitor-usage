@@ -1,6 +1,6 @@
 # Claude Usage Monitor
 
-Operational visibility for Claude usage — directly inside VSCode.
+Built for developers working with Claude Code and the Anthropic API. Operational visibility for Claude usage — directly inside VSCode.
 
 Part of the Dikeit operational tooling ecosystem.
 
