@@ -2,7 +2,7 @@
   "name": "dikeit-claude-usage-monitor",
   "displayName": "Dikeit — Claude Usage Monitor",
   "description": "Monitor Claude API limits and token usage (5-hour & 7-day) directly inside VSCode. Real-time status bar visibility and threshold alerts.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "icon": "assets/icon.png",
   "publisher": "dikeit",
   "author": {
