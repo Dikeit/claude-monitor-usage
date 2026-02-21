@@ -1,0 +1,126 @@
+{
+  "name": "claude-usage-vscode",
+  "displayName": "Claude Usage Monitor",
+  "description": "Real-time Claude API usage monitor — 5-hour and weekly windows in the status bar and panel.",
+  "version": "0.1.0",
+  "publisher": "dikeit",
+  "author": {
+    "name": "Matt Garrido",
+    "email": "mateo@dikeit.com",
+    "url": "https://dikeit.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/dikeit/claude-usage-vscode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dikeit/claude-usage-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dikeit/claude-usage-vscode/issues",
+    "email": "mateo@dikeit.com"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "keywords": ["claude", "anthropic", "usage", "tokens", "monitor", "ai", "status bar"],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:claudeUsage.openPanel",
+    "onCommand:claudeUsage.refresh",
+    "onCommand:claudeUsage.signIn",
+    "onCommand:claudeUsage.toggleStatusBarMode"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeUsage.openPanel",
+        "title": "Claude Usage: Open Panel",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "claudeUsage.refresh",
+        "title": "Claude Usage: Refresh"
+      },
+      {
+        "command": "claudeUsage.signIn",
+        "title": "Claude Usage: Sign In / Configure Token"
+      },
+      {
+        "command": "claudeUsage.toggleStatusBarMode",
+        "title": "Claude Usage: Toggle Status Bar Mode"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Usage",
+      "properties": {
+        "claudeUsage.refreshIntervalSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 10,
+          "description": "How often to refresh usage data (in seconds). Minimum 10."
+        },
+        "claudeUsage.thresholds": {
+          "type": "array",
+          "items": { "type": "number" },
+          "default": [50, 75, 90, 100],
+          "description": "Percentage thresholds at which to show notifications."
+        },
+        "claudeUsage.statusBarDisplay": {
+          "type": "string",
+          "enum": ["percentage", "bar", "compact"],
+          "enumDescriptions": [
+            "Show percentage (e.g. Claude 72%)",
+            "Show ASCII progress bar (e.g. Claude [███████░░░])",
+            "Show compact (e.g. ☁ 72%)"
+          ],
+          "default": "percentage",
+          "description": "How usage is displayed in the status bar."
+        },
+        "claudeUsage.primaryMetric": {
+          "type": "string",
+          "enum": ["fiveHour", "weekly"],
+          "enumDescriptions": [
+            "Show the 5-hour rolling window (most restrictive)",
+            "Show the 7-day rolling window"
+          ],
+          "default": "fiveHour",
+          "description": "Which metric to show in the status bar."
+        },
+        "claudeUsage.enableNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show VSCode notifications when usage crosses configured thresholds."
+        },
+        "claudeUsage.debugLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose debug logging to the Output panel."
+        },
+        "claudeUsage.autoDetectCredentials": {
+          "type": "boolean",
+          "default": true,
+          "description": "Attempt to auto-detect credentials from Claude Code installation."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.24.0",
+    "mocha": "^10.3.0",
+    "typescript": "^5.3.3"
+  }
+}
