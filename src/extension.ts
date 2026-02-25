@@ -7,6 +7,8 @@ import { HistoryStore } from './storage/HistoryStore';
 import { StoredToken, UsageSnapshot } from './usage/types';
 
 const DEBOUNCE_MS = 2000;
+const AUTH_RETRY_MAX = 1;
+const AUTH_PROMPT_COOLDOWN_MS = 5 * 60 * 1000;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // Item de diagnóstico: aparece INMEDIATAMENTE, sin depender de ningún await.
@@ -59,6 +61,7 @@ async function _activate(context: vscode.ExtensionContext): Promise<void> {
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
   const notifiedThresholds = new Set<number>();
   let shownAutoDetectFailedOnce = false;
+  let lastAuthPromptMs = 0;
 
   // ── Commands ───────────────────────────────────────────────────────────────
   context.subscriptions.push(
@@ -95,7 +98,7 @@ async function _activate(context: vscode.ExtensionContext): Promise<void> {
   );
 
   // ── Core refresh logic ─────────────────────────────────────────────────────
-  async function refresh(force = false): Promise<void> {
+  async function refresh(force = false, authRetryCount = 0): Promise<void> {
     const now = Date.now();
     if (!force && now - lastRefreshMs < DEBOUNCE_MS) {
       log('Refresh skipped (debounce)');
@@ -148,31 +151,52 @@ async function _activate(context: vscode.ExtensionContext): Promise<void> {
         `Usage: 5h=${snapshot.fiveHour.percent.toFixed(1)}% 7d=${snapshot.weekly.percent.toFixed(1)}%`
       );
     } catch (err) {
-      handleError(err);
+      const recovered = await handleError(err, authRetryCount);
+      if (recovered) {
+        await refresh(true, authRetryCount + 1);
+      }
     }
   }
 
-  function handleError(err: unknown): void {
+  async function handleError(err: unknown, authRetryCount: number): Promise<boolean> {
     if (err instanceof AuthError) {
+      log(`Auth error: ${err.message}`);
+
+      const autoDetect = config().get<boolean>('autoDetectCredentials', true);
+      if (autoDetect && authRetryCount < AUTH_RETRY_MAX) {
+        const recovered = await credentials.refreshFromAutoDetect();
+        if (recovered) {
+          const oldSuffix = currentToken?.accessToken.slice(-4) ?? 'none';
+          const newSuffix = recovered.accessToken.slice(-4);
+          currentToken = recovered;
+          log(`Recovered credentials from auto-detect (old ...${oldSuffix}, new ...${newSuffix})`);
+          return true;
+        }
+      }
+
       statusBar.showSignIn();
       currentToken = null;
-      void credentials.clearToken();
-      void vscode.window
-        .showWarningMessage(
-          'Claude Usage: Authentication failed. Please sign in again.',
-          'Sign In'
-        )
-        .then((action) => {
-          if (action === 'Sign In') {
-            void vscode.commands.executeCommand('claudeUsage.signIn');
-          }
-        });
+      const now = Date.now();
+      if (now - lastAuthPromptMs >= AUTH_PROMPT_COOLDOWN_MS) {
+        lastAuthPromptMs = now;
+        void vscode.window
+          .showWarningMessage(
+            'Claude Usage: Authentication failed and auto-recovery did not succeed. Please sign in again.',
+            'Sign In'
+          )
+          .then((action) => {
+            if (action === 'Sign In') {
+              void vscode.commands.executeCommand('claudeUsage.signIn');
+            }
+          });
+      }
     } else {
       const msg = err instanceof Error ? err.message : String(err);
       log(`API error: ${msg}`);
       statusBar.showError(msg.slice(0, 80));
       panel.showError(msg, false);
     }
+    return false;
   }
 
   function checkThresholds(snapshot: UsageSnapshot): void {

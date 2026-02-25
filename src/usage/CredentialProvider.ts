@@ -94,9 +94,13 @@ export class CredentialProvider {
     await this.secrets.store(SECRET_KEY_ACCESS, token.accessToken);
     if (token.refreshToken) {
       await this.secrets.store(SECRET_KEY_REFRESH, token.refreshToken);
+    } else {
+      await this.secrets.delete(SECRET_KEY_REFRESH);
     }
     if (token.expiresAtEpochMs) {
       await this.secrets.store(SECRET_KEY_EXPIRES, String(token.expiresAtEpochMs));
+    } else {
+      await this.secrets.delete(SECRET_KEY_EXPIRES);
     }
   }
 
@@ -104,6 +108,17 @@ export class CredentialProvider {
     await this.secrets.delete(SECRET_KEY_ACCESS);
     await this.secrets.delete(SECRET_KEY_REFRESH);
     await this.secrets.delete(SECRET_KEY_EXPIRES);
+  }
+
+  /**
+   * Force re-detection from Claude Code sources (files/credential manager),
+   * replacing cached SecretStorage values when a newer token is found.
+   */
+  async refreshFromAutoDetect(): Promise<StoredToken | null> {
+    const detected = await this.tryAutoDetect();
+    if (!detected) return null;
+    await this.saveToken(detected);
+    return detected;
   }
 
   /** Interactive: prompts the user to paste their access token. */

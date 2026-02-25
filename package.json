@@ -2,7 +2,7 @@
   "name": "dikeit-claude-usage-monitor",
   "displayName": "Dikeit — Claude Usage Monitor",
   "description": "Monitor Claude API limits and token usage (5-hour & 7-day) directly inside VSCode. Real-time status bar visibility and threshold alerts.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "icon": "assets/icon.png",
   "publisher": "dikeit",
   "author": {
@@ -23,8 +23,25 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other", "Testing", "Visualization"],
-  "keywords": ["claude", "anthropic", "usage", "tokens", "monitor", "ai", "status bar", "api", "quota", "limits", "developer tools", "cost monitoring"],
+  "categories": [
+    "Other",
+    "Testing",
+    "Visualization"
+  ],
+  "keywords": [
+    "claude",
+    "anthropic",
+    "usage",
+    "tokens",
+    "monitor",
+    "ai",
+    "status bar",
+    "api",
+    "quota",
+    "limits",
+    "developer tools",
+    "cost monitoring"
+  ],
   "activationEvents": [
     "onStartupFinished",
     "onCommand:claudeUsage.openPanel",
@@ -64,13 +81,24 @@
         },
         "claudeUsage.thresholds": {
           "type": "array",
-          "items": { "type": "number" },
-          "default": [50, 75, 90, 100],
+          "items": {
+            "type": "number"
+          },
+          "default": [
+            50,
+            75,
+            90,
+            100
+          ],
           "description": "Percentage thresholds at which to show notifications."
         },
         "claudeUsage.statusBarDisplay": {
           "type": "string",
-          "enum": ["percentage", "bar", "compact"],
+          "enum": [
+            "percentage",
+            "bar",
+            "compact"
+          ],
           "enumDescriptions": [
             "Show percentage (e.g. Claude 72%)",
             "Show ASCII progress bar (e.g. Claude [███████░░░])",
@@ -81,7 +109,10 @@
         },
         "claudeUsage.primaryMetric": {
           "type": "string",
-          "enum": ["fiveHour", "weekly"],
+          "enum": [
+            "fiveHour",
+            "weekly"
+          ],
           "enumDescriptions": [
             "Show the 5-hour rolling window (most restrictive)",
             "Show the 7-day rolling window"

@@ -38,7 +38,6 @@ exports.parseRawResponse = parseRawResponse;
 const https = __importStar(require("https"));
 const USAGE_ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
 const ANTHROPIC_BETA = 'oauth-2025-04-20';
-// ─── Parser (exported for unit tests) ───────────────────────────────────────
 function parseWindow(raw) {
     const date = new Date(raw.resets_at);
     return {
@@ -57,7 +56,6 @@ function parseRawResponse(raw, includeRaw) {
         ...(includeRaw ? { raw } : {}),
     };
 }
-// ─── HTTP helper (Node https, no external deps) ──────────────────────────────
 function httpsGet(url, headers) {
     return new Promise((resolve, reject) => {
         const parsed = new URL(url);
@@ -75,7 +73,25 @@ function httpsGet(url, headers) {
         req.end();
     });
 }
-// ─── Client ──────────────────────────────────────────────────────────────────
+function isLikelyAuthError(statusCode, maybeError, responseBody) {
+    if (statusCode === 401 || statusCode === 403)
+        return true;
+    if (maybeError.type !== 'error')
+        return false;
+    const errType = (maybeError.error?.type ?? '').toLowerCase();
+    const errMsg = (maybeError.error?.message ?? '').toLowerCase();
+    const bodyText = JSON.stringify(responseBody).toLowerCase();
+    const authHints = [
+        'auth',
+        'unauthorized',
+        'forbidden',
+        'invalid token',
+        'token expired',
+        'oauth',
+        'credential',
+    ];
+    return authHints.some((hint) => errType.includes(hint) || errMsg.includes(hint) || bodyText.includes(hint));
+}
 class AnthropicUsageClient {
     constructor(debugLogging = false) {
         this.debugLogging = debugLogging;
@@ -87,7 +103,7 @@ class AnthropicUsageClient {
     }
     async getUsage(token) {
         const tokenSuffix = token.accessToken.slice(-4);
-        this.log(`Fetching usage (token …${tokenSuffix})`);
+        this.log(`Fetching usage (token ...${tokenSuffix})`);
         const { statusCode, body } = await httpsGet(USAGE_ENDPOINT, {
             Authorization: `Bearer ${token.accessToken}`,
             'anthropic-beta': ANTHROPIC_BETA,
@@ -101,17 +117,19 @@ class AnthropicUsageClient {
         catch {
             throw new Error(`Failed to parse API response: ${body.slice(0, 120)}`);
         }
-        // Anthropic returns HTTP 200 even for auth errors — check body shape first
         const maybeError = parsed;
-        if (maybeError.type === 'error') {
+        if (isLikelyAuthError(statusCode, maybeError, parsed)) {
             const msg = maybeError.error?.message ?? 'Authentication error';
             throw new AuthError(msg);
         }
-        if (statusCode === 401) {
-            throw new AuthError('Unauthorized — token may be expired');
-        }
         if (statusCode < 200 || statusCode >= 300) {
+            if (maybeError.type === 'error') {
+                throw new Error(maybeError.error?.message ?? `Unexpected HTTP ${statusCode}`);
+            }
             throw new Error(`Unexpected HTTP ${statusCode}`);
+        }
+        if (maybeError.type === 'error') {
+            throw new Error(maybeError.error?.message ?? 'API returned an error');
         }
         const raw = parsed;
         if (!raw.five_hour || !raw.seven_day) {
@@ -121,7 +139,6 @@ class AnthropicUsageClient {
     }
 }
 exports.AnthropicUsageClient = AnthropicUsageClient;
-// ─── Errors ──────────────────────────────────────────────────────────────────
 class AuthError extends Error {
     constructor(message) {
         super(message);

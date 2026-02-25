@@ -42,6 +42,8 @@ const StatusBarController_1 = require("./ui/StatusBarController");
 const PanelWebview_1 = require("./ui/PanelWebview");
 const HistoryStore_1 = require("./storage/HistoryStore");
 const DEBOUNCE_MS = 2000;
+const AUTH_RETRY_MAX = 1;
+const AUTH_PROMPT_COOLDOWN_MS = 5 * 60 * 1000;
 async function activate(context) {
     // Item de diagnóstico: aparece INMEDIATAMENTE, sin depender de ningún await.
     // Si ves "☁ …" en la barra inferior, la extensión SÍ está activándose.
@@ -85,6 +87,7 @@ async function _activate(context) {
     let refreshTimer;
     const notifiedThresholds = new Set();
     let shownAutoDetectFailedOnce = false;
+    let lastAuthPromptMs = 0;
     // ── Commands ───────────────────────────────────────────────────────────────
     context.subscriptions.push(vscode.commands.registerCommand('claudeUsage.openPanel', () => panel.show()), vscode.commands.registerCommand('claudeUsage.refresh', () => void refresh()), vscode.commands.registerCommand('claudeUsage.signIn', async () => {
         const token = await credentials.promptForToken();
@@ -106,7 +109,7 @@ async function _activate(context) {
         }
     }));
     // ── Core refresh logic ─────────────────────────────────────────────────────
-    async function refresh(force = false) {
+    async function refresh(force = false, authRetryCount = 0) {
         const now = Date.now();
         if (!force && now - lastRefreshMs < DEBOUNCE_MS) {
             log('Refresh skipped (debounce)');
@@ -150,21 +153,39 @@ async function _activate(context) {
             log(`Usage: 5h=${snapshot.fiveHour.percent.toFixed(1)}% 7d=${snapshot.weekly.percent.toFixed(1)}%`);
         }
         catch (err) {
-            handleError(err);
+            const recovered = await handleError(err, authRetryCount);
+            if (recovered) {
+                await refresh(true, authRetryCount + 1);
+            }
         }
     }
-    function handleError(err) {
+    async function handleError(err, authRetryCount) {
         if (err instanceof AnthropicUsageClient_1.AuthError) {
+            log(`Auth error: ${err.message}`);
+            const autoDetect = config().get('autoDetectCredentials', true);
+            if (autoDetect && authRetryCount < AUTH_RETRY_MAX) {
+                const recovered = await credentials.refreshFromAutoDetect();
+                if (recovered) {
+                    const oldSuffix = currentToken?.accessToken.slice(-4) ?? 'none';
+                    const newSuffix = recovered.accessToken.slice(-4);
+                    currentToken = recovered;
+                    log(`Recovered credentials from auto-detect (old ...${oldSuffix}, new ...${newSuffix})`);
+                    return true;
+                }
+            }
             statusBar.showSignIn();
             currentToken = null;
-            void credentials.clearToken();
-            void vscode.window
-                .showWarningMessage('Claude Usage: Authentication failed. Please sign in again.', 'Sign In')
-                .then((action) => {
-                if (action === 'Sign In') {
-                    void vscode.commands.executeCommand('claudeUsage.signIn');
-                }
-            });
+            const now = Date.now();
+            if (now - lastAuthPromptMs >= AUTH_PROMPT_COOLDOWN_MS) {
+                lastAuthPromptMs = now;
+                void vscode.window
+                    .showWarningMessage('Claude Usage: Authentication failed and auto-recovery did not succeed. Please sign in again.', 'Sign In')
+                    .then((action) => {
+                    if (action === 'Sign In') {
+                        void vscode.commands.executeCommand('claudeUsage.signIn');
+                    }
+                });
+            }
         }
         else {
             const msg = err instanceof Error ? err.message : String(err);
@@ -172,6 +193,7 @@ async function _activate(context) {
             statusBar.showError(msg.slice(0, 80));
             panel.showError(msg, false);
         }
+        return false;
     }
     function checkThresholds(snapshot) {
         if (!config().get('enableNotifications', true))
